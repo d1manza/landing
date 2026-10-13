@@ -17,7 +17,7 @@
     <div class="container header-container">
         <div class="logo">ГЕОМЕТРИЯ<span class="dot">.</span></div>
         <div class="contact-info">
-            <a href="tel:+79233330410" class="phone">+7 (923) 333-04-10</a>
+            <a href="tel:+79233330410" class="phone">8 (923) 333-04-10</a>
             <a href="#contact" class="btn btn-outline">Записаться</a>
         </div>
     </div>
@@ -44,7 +44,6 @@
             <p><em>Наша цель — сделать так, чтобы следы ремонта были незаметны даже для профессиональных толщиномеров и автоэкспертов.</em></p>
         </div>
         <div class="about-image">
-            <!-- КАРТИНКА ТЕПЕРЬ ТЯНЕТСЯ ИЗ ТВОЕЙ ПАПКИ img -->
             <img src="img/about.webp" alt="Процесс кузовного ремонта авто Красноярск">
         </div>
     </div>
@@ -103,6 +102,7 @@
 
         <div class="form-card">
             <form id="repairForm" class="secure-form" novalidate>
+                <!-- Скрытое поле (Honeypot) - доп. защита от ботов -->
                 <input type="text" name="_honey" id="honey" style="display:none" tabindex="-1" autocomplete="off">
 
                 <div class="form-group">
@@ -126,6 +126,13 @@
                 <div class="form-group">
                     <label for="message">Описание проблемы (необязательно)</label>
                     <textarea id="message" name="message" rows="3" placeholder="Что нужно отремонтировать?"></textarea>
+                </div>
+
+                <!-- Блок ручной Капчи -->
+                <div class="form-group">
+                    <label for="captchaInput" id="captchaLabel">Антиспам: 0 + 0 = ?</label>
+                    <input type="text" id="captchaInput" placeholder="Введите ответ цифрами">
+                    <span class="error-text" id="captchaError">Ответ неверный, попробуйте еще раз</span>
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100" id="submitBtn">Отправить заявку</button>

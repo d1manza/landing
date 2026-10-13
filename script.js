@@ -4,17 +4,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const phoneInput = document.getElementById('phone');
     const carInput = document.getElementById('car');
     const honeyInput = document.getElementById('honey');
+
+    // Элементы капчи
+    const captchaLabel = document.getElementById('captchaLabel');
+    const captchaInput = document.getElementById('captchaInput');
+    let captchaAnswer = 0;
+
     const submitBtn = document.getElementById('submitBtn');
     const statusMessage = document.getElementById('formStatus');
 
     // !!! ВСТАВЬ СЮДА СВОЮ ССЫЛКУ ИЗ GOOGLE APPS SCRIPT !!!
-    const SCRIPT_URL = 'xxx';
-
-    let hasSentPartial = false;
-    let autoSaveTimeout = null;
+    const SCRIPT_URL = 'ТВОЙ_URL_ИЗ_GOOGLE_APPS_SCRIPT';
 
     // ==========================================
-    // 1. УДОБНАЯ И ПЛАВНАЯ МАСКА ТЕЛЕФОНА
+    // 1. ГЕНЕРАЦИЯ КАПЧИ
+    // ==========================================
+    function generateCaptcha() {
+        // Генерируем два числа от 1 до 10
+        const num1 = Math.floor(Math.random() * 10) + 1;
+        const num2 = Math.floor(Math.random() * 10) + 1;
+        captchaAnswer = num1 + num2;
+        captchaLabel.textContent = `Антиспам: ${num1} + ${num2} = ?`;
+        captchaInput.value = ''; // очищаем поле
+    }
+
+    // Запускаем капчу при загрузке страницы
+    generateCaptcha();
+
+    // ==========================================
+    // 2. УДОБНАЯ И ПЛАВНАЯ МАСКА ТЕЛЕФОНА
     // ==========================================
     phoneInput.addEventListener('input', function(e) {
         let inputNumbersValue = this.value.replace(/\D/g, '');
@@ -57,54 +75,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // 2. ПЕРЕХВАТ ЛИДА (ТАЙМ-АУТ 5 СЕКУНД)
+    // СНЯТИЕ ОШИБОК ПРИ ВВОДЕ
     // ==========================================
-    phoneInput.addEventListener('focus', () => {
-        if (autoSaveTimeout) {
-            clearTimeout(autoSaveTimeout);
-            autoSaveTimeout = null;
-        }
-    });
-
-    phoneInput.addEventListener('blur', () => {
-        if (hasSentPartial || SCRIPT_URL === 'ТВОЙ_URL_ИЗ_GOOGLE_APPS_SCRIPT') return;
-
-        const rawPhone = phoneInput.value.replace(/\D/g, '');
-
-        if (rawPhone.length === 11 && rawPhone.startsWith('79')) {
-
-            autoSaveTimeout = setTimeout(async () => {
-                if (hasSentPartial) return;
-                hasSentPartial = true;
-
-                const formData = new FormData(form);
-
-                // === ФИКС ДЛЯ GOOGLE ТАБЛИЦ: УБИРАЕМ ПЛЮС ===
-                let currentPhone = formData.get('phone') || '';
-                if (currentPhone.startsWith('+')) {
-                    formData.set('phone', currentPhone.substring(1)); // отправляем 7 (983) ...
-                }
-                // ============================================
-
-                const currentMessage = formData.get('message') || '';
-                formData.set('message', currentMessage + ' [Автосохранение неполной заявки]');
-
-                try {
-                    await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    console.log('Лид успешно перехвачен');
-                } catch (error) {
-                    console.error('Ошибка перехвата:', error);
-                }
-            }, 5000);
-        }
-    });
-
-    // Снимаем ошибки при вводе
     nameInput.addEventListener('input', () => hideError(nameInput));
     carInput.addEventListener('input', () => hideError(carInput));
+    captchaInput.addEventListener('input', () => hideError(captchaInput));
 
     function showError(input, errorId) {
         input.classList.add('invalid');
@@ -120,14 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 3. ОТПРАВКА ОСНОВНОЙ ФОРМЫ
+    // 3. ОТПРАВКА ОСНОВНОЙ ФОРМЫ (И ВАЛИДАЦИЯ)
     // ==========================================
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        if (autoSaveTimeout) {
-            clearTimeout(autoSaveTimeout);
-        }
 
         statusMessage.textContent = '';
         statusMessage.className = 'status-message';
@@ -154,7 +125,16 @@ document.addEventListener('DOMContentLoaded', () => {
             isValid = false;
         }
 
-        // Honeypot
+        // Капча
+        const userCaptchaAnswer = parseInt(captchaInput.value.trim(), 10);
+        if (userCaptchaAnswer !== captchaAnswer) {
+            showError(captchaInput, 'captchaError');
+            isValid = false;
+            // Обновляем пример, если пользователь ошибся
+            generateCaptcha();
+        }
+
+        // Honeypot (невидимое поле от ботов)
         if (honeyInput.value) {
             console.warn('Spam bot blocked');
             return;
@@ -163,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isValid) return;
 
         if (SCRIPT_URL === 'ТВОЙ_URL_ИЗ_GOOGLE_APPS_SCRIPT') {
-            statusMessage.textContent = 'Произошла ошибка';
+            statusMessage.textContent = 'Ошибка: не настроен URL скрипта Google!';
             statusMessage.classList.add('error');
             return;
         }
@@ -175,12 +155,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const formData = new FormData(form);
 
-            // === ФИКС ДЛЯ GOOGLE ТАБЛИЦ: УБИРАЕМ ПЛЮС ===
+            // Фикс для Google Таблиц: убираем плюс перед отправкой
             let currentPhone = formData.get('phone') || '';
             if (currentPhone.startsWith('+')) {
-                formData.set('phone', currentPhone.substring(1)); // отправляем 7 (983) ...
+                formData.set('phone', currentPhone.substring(1)); // отправляем "7 (983) ..."
             }
-            // ============================================
+
+            // Удаляем капчу из данных, которые полетят в Гугл Таблицу (она там не нужна)
+            formData.delete('captcha');
 
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
@@ -191,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusMessage.textContent = 'ЗАЯВКА ОТПРАВЛЕНА. МЫ СКОРО СВЯЖЕМСЯ С ВАМИ.';
                 statusMessage.classList.add('success');
                 form.reset();
-                hasSentPartial = false;
+                generateCaptcha(); // Генерируем новую капчу после успешной отправки
             } else {
                 throw new Error('Network Error');
             }
